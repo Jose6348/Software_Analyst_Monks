@@ -34,6 +34,13 @@ final class CatalogEndpointsTest extends ApiTestCase
         self::assertSame(100, array_sum(array_column($questions, 'weight')));
     }
 
+    public function testAccentedNamesSurviveTheJsonRoundTrip(): void
+    {
+        $questions = $this->decode($this->request('GET', '/api/questions'));
+
+        self::assertSame('Execução e Qualidade do Trabalho', $questions[1]['name']);
+    }
+
     public function testUnknownRouteKeepsTheStandardErrorShape(): void
     {
         $response = $this->request('GET', '/api/nao-existe');

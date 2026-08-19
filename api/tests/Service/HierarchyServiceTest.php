@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Http\ApiException;
 use App\Model\Subordinate;
 use App\Repository\EmployeeRepository;
 use App\Service\HierarchyService;
-use App\Tests\Support\DatabaseTestCase;
+use App\Tests\Support\TransactionalTestCase;
 
-final class HierarchyServiceTest extends DatabaseTestCase
+final class HierarchyServiceTest extends TransactionalTestCase
 {
     private const ALICE = 1;
     private const BOB = 2;
@@ -67,6 +68,17 @@ final class HierarchyServiceTest extends DatabaseTestCase
         self::assertCount(3, $depths);
         self::assertSame(1, $depths[self::JAMES]);
         self::assertSame(2, $depths[self::HENRY], 'Henry volta como descendente de si mesmo pelo ciclo.');
+    }
+
+    public function testSelfAccessIsBlockedEvenWhenACycleMakesSomeoneTheirOwnDescendant(): void
+    {
+        $this->addLeadership(self::JAMES, self::HENRY);
+
+        // O ciclo faz a travessia devolver o proprio Henry; a autorizacao nao pode se apoiar nisso.
+        self::assertArrayHasKey(self::HENRY, $this->depthsFrom(self::HENRY));
+
+        $this->expectException(ApiException::class);
+        $this->hierarchy->assertCanAccess(self::HENRY, self::HENRY);
     }
 
     /** @return array<int,int> */

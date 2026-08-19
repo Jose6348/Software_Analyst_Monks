@@ -16,14 +16,14 @@ final readonly class Employee implements JsonSerializable
     ) {
     }
 
-    /** @param array<string,mixed> $row */
-    public static function fromRow(array $row): self
+    /** O prefixo hidrata avaliador e avaliado a partir de uma mesma linha. @param array<string,mixed> $row */
+    public static function fromRow(array $row, string $prefix = ''): self
     {
         return new self(
-            (int) $row['id'],
-            (string) $row['name'],
-            (string) $row['email'],
-            (string) $row['position_name'],
+            (int) $row[$prefix . 'id'],
+            (string) $row[$prefix . 'name'],
+            (string) $row[$prefix . 'email'],
+            (string) $row[$prefix . 'position_name'],
         );
     }
 

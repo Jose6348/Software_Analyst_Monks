@@ -31,7 +31,7 @@ class ApiException extends RuntimeException
         return new self(404, $errorCode, $message);
     }
 
-    public static function conflict(string $message, string $errorCode = 'CONFLICT'): self
+    public static function conflict(string $message, string $errorCode): self
     {
         return new self(409, $errorCode, $message);
     }

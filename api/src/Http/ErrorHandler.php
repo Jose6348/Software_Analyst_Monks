@@ -7,6 +7,7 @@ namespace App\Http;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Exception\HttpException;
 use Slim\Exception\HttpMethodNotAllowedException;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Interfaces\ErrorHandlerInterface;
@@ -33,6 +34,8 @@ final readonly class ErrorHandler implements ErrorHandlerInterface
             ],
             $exception instanceof HttpNotFoundException => [404, 'NOT_FOUND', 'Rota não encontrada.'],
             $exception instanceof HttpMethodNotAllowedException => [405, 'METHOD_NOT_ALLOWED', 'Método não permitido.'],
+            // Rede de seguranca para o resto da familia do Slim, que sem isso viraria 500.
+            $exception instanceof HttpException => [$exception->getCode(), 'HTTP_ERROR', $exception->getDescription()],
             default => [500, 'INTERNAL_ERROR', 'Erro interno do servidor.'],
         };
 
