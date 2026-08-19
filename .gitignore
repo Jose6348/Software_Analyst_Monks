@@ -1,0 +1,13 @@
+# Dependencias
+node_modules/
+vendor/
+
+# Build
+dist/
+
+# Ambiente local
+.env
+
+# Cache de ferramentas
+.phpunit.cache/
+.phpunit.result.cache
