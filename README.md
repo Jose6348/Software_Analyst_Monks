@@ -94,8 +94,9 @@ Browser ──► nginx (web:80) ──► /api/* ──► Slim (api:8080) ─�
               └─ SPA estática
 ```
 
-> Esta seção descreve o desenho alvo. As camadas entram por feature: `Bootstrap` e `Http` já
-> existem; `Middleware`, `Controller`, `Service` e `Repository` chegam nos PRs seguintes.
+> Esta seção descreve o desenho alvo. Todas as camadas já existem; falta apenas o domínio de
+> avaliações (`EvaluationController`, `EvaluationService`, `EvaluationRepository`), que chega
+> nos PRs seguintes.
 
 Uma requisição na API percorre sempre a mesma cadeia:
 
@@ -151,6 +152,43 @@ derivado em vez de fixo. Dividir pela soma dos pesos *respondidos* seria diferen
 avaliação incompleta sairia com nota cheia sobre um subconjunto de questões. Do jeito atual ela
 sai baixa, que é o modo seguro de falhar.
 
+### Endpoints
+
+Todas as rotas ficam sob `/api` e respondem JSON. Só as marcadas exigem o header
+`X-Employee-Id`; a lista de funcionários é pública justamente para alimentar o seletor de líder
+antes de haver um líder escolhido.
+
+| Método | Rota | `X-Employee-Id` | Descrição |
+|---|---|:---:|---|
+| GET | `/health` | — | Sonda de disponibilidade |
+| GET | `/employees` | — | Todos os funcionários, para o seletor de líder |
+| GET | `/questions` | — | As 6 questões e seus pesos |
+| GET | `/me/subordinates` | sim | Subordinados diretos e indiretos do líder atual |
+| POST | `/evaluations` | sim | *(próximo PR)* |
+| GET | `/employees/{id}/evaluations` | sim | *(próximo PR)* |
+| GET | `/employees/{id}/evaluations/latest` | sim | *(próximo PR)* |
+
+```bash
+curl -H 'X-Employee-Id: 8' http://localhost:8080/api/me/subordinates
+```
+
+```json
+[
+  {
+    "id": 10,
+    "name": "James Watanabe",
+    "email": "james.watanabe@company.com",
+    "position_name": "Software Engineer",
+    "depth": 1,
+    "is_direct": true
+  }
+]
+```
+
+`depth` é a distância até o líder atual e `is_direct` é o atalho para `depth === 1`. Quando um
+funcionário é alcançável por mais de um caminho — `leader_lead` é um grafo N:N, não uma árvore —
+vale a menor profundidade.
+
 ### Erros
 
 Todas as respostas de erro têm o mesmo formato:
@@ -159,12 +197,14 @@ Todas as respostas de erro têm o mesmo formato:
 { "error": { "code": "FORBIDDEN", "message": "..." } }
 ```
 
-| Status | Quando |
-|---|---|
-| 400 | Payload inválido |
-| 403 | Avaliado fora da hierarquia do usuário atual |
-| 404 | Recurso inexistente |
-| 409 | Par avaliador/avaliado já avaliado nesta semana |
+| Status | `code` | Quando |
+|---|---|---|
+| 400 | `MISSING_EMPLOYEE_ID` | Header `X-Employee-Id` ausente |
+| 400 | `INVALID_EMPLOYEE_ID` | Header `X-Employee-Id` não é um inteiro positivo |
+| 400 | `VALIDATION_ERROR` | Payload inválido |
+| 403 | `FORBIDDEN` | Avaliado fora da hierarquia do usuário atual |
+| 404 | `NOT_FOUND` | Recurso inexistente |
+| 409 | `CONFLICT` | Par avaliador/avaliado já avaliado nesta semana |
 
 ---
 
