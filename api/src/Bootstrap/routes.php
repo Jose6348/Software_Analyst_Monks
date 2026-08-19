@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Controller\EmployeeController;
+use App\Controller\QuestionController;
 use App\Http\JsonResponse;
+use App\Middleware\CurrentEmployeeMiddleware;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\App;
@@ -16,5 +19,12 @@ return static function (App $app): void {
             fn (ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
                 => JsonResponse::write($response, ['status' => 'ok']),
         );
+
+        // Catalogo publico: alimenta o seletor de lider e o formulario, antes de haver lider escolhido.
+        $api->get('/employees', [EmployeeController::class, 'index']);
+        $api->get('/questions', [QuestionController::class, 'index']);
+
+        $api->get('/me/subordinates', [EmployeeController::class, 'subordinates'])
+            ->add(CurrentEmployeeMiddleware::class);
     });
 };
