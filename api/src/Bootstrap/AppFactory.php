@@ -11,11 +11,16 @@ use Slim\Factory\AppFactory as SlimAppFactory;
 
 final class AppFactory
 {
-    public static function create(): App
+    /**
+     * @param array<string,mixed> $overrides definicoes que sobrescrevem as padrao; usado pelos
+     *                                        testes para injetar o PDO da transacao de teste.
+     */
+    public static function create(array $overrides = []): App
     {
         $container = (new ContainerBuilder())
             ->useAutowiring(true)
             ->addDefinitions(__DIR__ . '/definitions.php')
+            ->addDefinitions($overrides)
             ->build();
 
         SlimAppFactory::setContainer($container);
