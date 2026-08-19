@@ -1,0 +1,61 @@
+name: monks-evaluation
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-evaluation}
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # O Postgres executa estes scripts em ordem alfabetica, uma unica vez, em volume vazio.
+      - ./api/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # O -h e essencial: durante o initdb o Postgres sobe um servidor temporario com
+      # listen_addresses='', acessivel só pelo socket unix. Sem -h o pg_isready reporta
+      # healthy com as migrations ainda rodando e libera a `api` contra um banco vazio.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${DB_USER:-app} -d ${DB_NAME:-evaluation}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build: ./api
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-evaluation}
+      DB_USER: ${DB_USER:-app}
+      DB_PASSWORD: ${DB_PASSWORD:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/api/health') ? 0 : 1);"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      # Montagens por subpasta: o codigo recarrega sem rebuild e o `vendor/` da imagem fica intacto.
+      - ./api/src:/var/www/src
+      - ./api/public:/var/www/public
+      - ./api/tests:/var/www/tests
+      - ./api/migrations:/var/www/migrations
+
+  web:
+    build: ./frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_HOST_PORT:-3000}:80"
+
+volumes:
+  db_data:
