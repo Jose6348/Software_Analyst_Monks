@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Api;
 
 use App\Tests\Support\ApiTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class SubordinatesEndpointTest extends ApiTestCase
 {
@@ -27,7 +28,7 @@ final class SubordinatesEndpointTest extends ApiTestCase
         return [['abc'], ['0'], ['-1'], ['1.5'], ['1; DROP TABLE employee']];
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidHeaderProvider')]
+    #[DataProvider('invalidHeaderProvider')]
     public function testNonPositiveIntegerHeaderIsRejected(string $header): void
     {
         $response = $this->requestWithRawHeader('GET', '/api/me/subordinates', $header);

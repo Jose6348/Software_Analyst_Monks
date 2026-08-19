@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Migration;
 
-use App\Tests\Support\DatabaseTestCase;
+use App\Tests\Support\TransactionalTestCase;
 
-final class SchemaTest extends DatabaseTestCase
+final class SchemaTest extends TransactionalTestCase
 {
     private const HENRY = 8;
     private const DAVID = 4;

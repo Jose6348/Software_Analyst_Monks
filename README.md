@@ -71,9 +71,13 @@ O `-v` é obrigatório — sem ele o volume antigo persiste e as migrations não
 docker compose exec api composer test
 ```
 
-Os testes rodam contra o Postgres do Compose, cada caso dentro de uma transação com rollback.
 São de integração por decisão consciente: as regras críticas (CTEs recursivas, índice único
 semanal, fórmula da nota) vivem em SQL, e testá-las com PDO mockado não testaria nada.
+
+A suíte usa um **banco separado**, `evaluation_test`, criado pelo mesmo `initdb` a partir das
+mesmas migrations. Os testes de HTTP truncam as tabelas de avaliação entre os casos, e isso
+jamais pode alcançar os dados da aplicação — rodar a suíte depois de uma demonstração não pode
+apagar o que foi criado nela.
 
 ### Front em modo dev (fora do Docker)
 
@@ -94,9 +98,8 @@ Browser ──► nginx (web:80) ──► /api/* ──► Slim (api:8080) ─�
               └─ SPA estática
 ```
 
-> Esta seção descreve o desenho alvo. Todas as camadas já existem; falta apenas o domínio de
-> avaliações (`EvaluationController`, `EvaluationService`, `EvaluationRepository`), que chega
-> nos PRs seguintes.
+> Esta seção descreve o desenho alvo. Todas as camadas já existem; falta apenas o caminho de
+> leitura de avaliações, que chega no próximo PR.
 
 Uma requisição na API percorre sempre a mesma cadeia:
 
@@ -164,7 +167,7 @@ antes de haver um líder escolhido.
 | GET | `/employees` | — | Todos os funcionários, para o seletor de líder |
 | GET | `/questions` | — | As 6 questões e seus pesos |
 | GET | `/me/subordinates` | sim | Subordinados diretos e indiretos do líder atual |
-| POST | `/evaluations` | sim | *(próximo PR)* |
+| POST | `/evaluations` | sim | Registra uma avaliação |
 | GET | `/employees/{id}/evaluations` | sim | *(próximo PR)* |
 | GET | `/employees/{id}/evaluations/latest` | sim | *(próximo PR)* |
 
@@ -189,6 +192,41 @@ curl -H 'X-Employee-Id: 8' http://localhost:8080/api/me/subordinates
 funcionário é alcançável por mais de um caminho — `leader_lead` é um grafo N:N, não uma árvore —
 vale a menor profundidade.
 
+#### `POST /api/evaluations`
+
+Exige as seis questões, cada uma respondida uma única vez com um inteiro de 1 a 4. Ou entram
+todas, ou nenhuma.
+
+```bash
+curl -X POST http://localhost:8080/api/evaluations   -H 'Content-Type: application/json'   -H 'X-Employee-Id: 8'   -d '{
+        "evaluated_id": 10,
+        "answers": [
+          {"question_id": 1, "answer": 4},
+          {"question_id": 2, "answer": 3},
+          {"question_id": 3, "answer": 4},
+          {"question_id": 4, "answer": 2},
+          {"question_id": 5, "answer": 1},
+          {"question_id": 6, "answer": 3}
+        ]
+      }'
+```
+
+```json
+{
+  "id": 1,
+  "evaluator": { "id": 8, "name": "Henry Patel", "email": "...", "position_name": "..." },
+  "evaluated": { "id": 10, "name": "James Watanabe", "email": "...", "position_name": "..." },
+  "created_at": "2026-08-19T17:58:09Z",
+  "score": "3.10",
+  "answers": [
+    { "question_id": 1, "question_name": "Entrega de Resultados", "weight": 25, "answer": 4 }
+  ]
+}
+```
+
+A nota vem como **string**, não como número: é um decimal de escala fixa, e passá-lo por um
+float JSON é justamente o que produz `3.1000000000000001`. O front só exibe.
+
 ### Erros
 
 Todas as respostas de erro têm o mesmo formato:
@@ -204,7 +242,11 @@ Todas as respostas de erro têm o mesmo formato:
 | 400 | `VALIDATION_ERROR` | Payload inválido |
 | 403 | `FORBIDDEN` | Avaliado fora da hierarquia do usuário atual |
 | 404 | `NOT_FOUND` | Recurso inexistente |
-| 409 | `CONFLICT` | Par avaliador/avaliado já avaliado nesta semana |
+| 409 | `WEEKLY_LIMIT_REACHED` | Par avaliador/avaliado já avaliado nesta semana |
+
+O limite semanal é detectado pelo banco (violação do índice único), traduzido para o conceito de
+negócio no `EvaluationRepository` e mapeado para 409 no `EvaluationService` — a regra e sua
+resposta HTTP ficam na camada de serviço, o SQLSTATE não sai da camada de persistência.
 
 ---
 
