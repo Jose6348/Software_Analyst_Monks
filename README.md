@@ -89,6 +89,12 @@ cd frontend && npm install && npm run dev
 O Vite faz proxy de `/api` para `localhost:8080`, espelhando o que o nginx faz em produção. Assim
 o front sempre usa caminhos relativos e a API não precisa de CORS.
 
+### Checagem antes de commitar o front
+
+```bash
+cd frontend && npm run lint && npm run build
+```
+
 ---
 
 ## Arquitetura
@@ -110,6 +116,15 @@ Route → CurrentEmployeeMiddleware → Controller → Service → Repository �
 | `Service` | Hierarquia, visibilidade, limite semanal, validação do payload | SQL |
 | `Repository` | Único ponto que toca PDO; toda query parametrizada | Decisão de negócio |
 | `Middleware` | Resolve o líder atual a partir de `X-Employee-Id` | — |
+
+```
+frontend/src/
+├── api/            client fetch tipado; único ponto que injeta X-Employee-Id
+├── components/     LeaderSwitcher, ScoreBadge, AppLayout, CurrentLeaderProvider
+├── hooks/          líder atual (localStorage + contexto) e queries
+├── pages/          Dashboard
+└── types/          contrato da API em TypeScript
+```
 
 ```
 api/
@@ -301,7 +316,8 @@ devolveria o próprio usuário. A autorização compara os ids diretamente, e o 
 
 **Identificação do líder sem login.** O case veda um sistema de login completo. O front guarda o
 `employee_id` do líder atual em `localStorage` e o envia em toda requisição no header
-`X-Employee-Id`; um seletor no topo da UI troca de líder. Isso **simula** autenticação e não é
+`X-Employee-Id`; o seletor no topo da tela troca de líder e a escolha sobrevive ao reload. No
+código, o header é injetado num único lugar — `frontend/src/api/client.ts`. Isso **simula** autenticação e não é
 seguro — qualquer cliente pode forjar o header. Em produção o `CurrentEmployeeMiddleware` seria o
 único ponto de troca: em vez de confiar num header, validaria um JWT ou uma sessão e extrairia
 dali o `employee_id`. Todo o resto — services, repositories, regras de visibilidade — continuaria
