@@ -31,5 +31,11 @@ return static function (App $app): void {
         // Sem PUT/PATCH/DELETE: a imutabilidade das respostas e garantida pela ausencia de rota.
         $api->post('/evaluations', [EvaluationController::class, 'store'])
             ->add(CurrentEmployeeMiddleware::class);
+
+        $api->get('/employees/{id:[0-9]+}/evaluations', [EvaluationController::class, 'history'])
+            ->add(CurrentEmployeeMiddleware::class);
+
+        $api->get('/employees/{id:[0-9]+}/evaluations/latest', [EvaluationController::class, 'latest'])
+            ->add(CurrentEmployeeMiddleware::class);
     });
 };

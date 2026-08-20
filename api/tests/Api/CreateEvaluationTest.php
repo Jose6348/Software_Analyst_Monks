@@ -115,6 +115,16 @@ final class CreateEvaluationTest extends ApiTestCase
         self::assertSame(404, $response->getStatusCode());
     }
 
+    public function testEvaluatedIdBeyondTheIntegerColumnRangeIsNotFound(): void
+    {
+        $response = $this->postJson('/api/evaluations', [
+            'evaluated_id' => 2147483648,
+            'answers'      => $this->answers(),
+        ], self::HENRY);
+
+        self::assertSame(404, $response->getStatusCode());
+    }
+
     /** @return array<string,array{mixed}> */
     public static function invalidPayloadProvider(): array
     {

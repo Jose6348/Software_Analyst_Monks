@@ -11,6 +11,9 @@ abstract class TransactionalTestCase extends DatabaseTestCase
 {
     protected function setUp(): void
     {
+        // Antes da transacao: os testes de HTTP commitam avaliacoes, e sem isso o estado
+        // inicial aqui dependeria da ordem de execucao das classes.
+        self::$pdo->exec('TRUNCATE evaluation_answer, evaluation RESTART IDENTITY');
         self::$pdo->beginTransaction();
     }
 

@@ -12,6 +12,9 @@ final readonly class EmployeeRepository
 {
     private const MAX_DEPTH = 20;
 
+    /** `employee.id` e int4: um id acima disso nao existe e faria o Postgres estourar 22003. */
+    private const MAX_ID = 2147483647;
+
     public function __construct(private PDO $pdo)
     {
     }
@@ -29,6 +32,10 @@ final readonly class EmployeeRepository
 
     public function findById(int $id): ?Employee
     {
+        if ($id < 1 || $id > self::MAX_ID) {
+            return null;
+        }
+
         $statement = $this->pdo->prepare(
             'SELECT id, name, email, position_name FROM employee WHERE id = :id',
         );
@@ -45,6 +52,8 @@ final readonly class EmployeeRepository
      * caminho (daí o MIN) e nada no schema impede um ciclo. O UNION deduplica pares
      * (employee_id, depth), mas num ciclo a profundidade cresce a cada volta e o par nunca
      * se repete — quem corta a recursão é o limite de profundidade.
+     *
+     * Não traz notas: esta consulta também serve à autorização, que só precisa do conjunto.
      *
      * @return list<Subordinate>
      */
