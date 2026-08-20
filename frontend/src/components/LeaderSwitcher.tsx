@@ -1,4 +1,4 @@
-import { parseLeaderId, useCurrentLeader } from '../hooks/currentLeader'
+import { parseEmployeeId, useCurrentLeader } from '../hooks/currentLeader'
 import { useEmployees } from '../hooks/queries'
 
 export function LeaderSwitcher() {
@@ -21,7 +21,7 @@ export function LeaderSwitcher() {
         value={knownLeaderId ?? ''}
         disabled={isPending}
         onChange={(event) => {
-          const id = parseLeaderId(event.target.value)
+          const id = parseEmployeeId(event.target.value)
 
           if (id !== null) {
             setLeaderId(id)
