@@ -7,7 +7,9 @@ namespace App\Service;
 use App\Http\ApiException;
 use App\Model\Employee;
 use App\Model\Evaluation;
+use App\Model\EvaluationSummary;
 use App\Model\Question;
+use App\Model\Subordinate;
 use App\Repository\EmployeeRepository;
 use App\Repository\EvaluationRepository;
 use App\Repository\QuestionRepository;
@@ -41,6 +43,58 @@ final readonly class EvaluationService
         $this->hierarchy->assertCanAccess($evaluator->id, $evaluated->id);
 
         return $this->store($evaluator->id, $evaluated->id, $answers);
+    }
+
+    /**
+     * Subordinados com a nota vigente de cada um — a mesma avaliacao que /latest devolveria,
+     * porque ambos leem a view current_evaluation.
+     *
+     * @return list<Subordinate>
+     */
+    public function subordinatesWithScores(Employee $leader): array
+    {
+        $subordinates = $this->hierarchy->subordinatesOf($leader->id);
+
+        $scores = $this->evaluations->findCurrentScoresFor(
+            array_map(static fn (Subordinate $s): int => $s->employee->id, $subordinates),
+        );
+
+        return array_map(
+            static fn (Subordinate $s): Subordinate => $s->withLatestScore($scores[$s->employee->id] ?? null),
+            $subordinates,
+        );
+    }
+
+    /**
+     * Avaliacao vigente: a mais recente respeitando a maior hierarquia. Nao e simplesmente a
+     * ultima linha gravada — a view current_evaluation resolve o criterio.
+     */
+    public function latestFor(Employee $viewer, int $evaluatedId): Evaluation
+    {
+        $this->assertVisible($viewer, $evaluatedId);
+
+        $evaluationId = $this->evaluations->findCurrentIdFor($evaluatedId)
+            ?? throw ApiException::notFound('Este funcionário ainda não foi avaliado.');
+
+        return $this->evaluations->findById($evaluationId)
+            ?? throw new LogicException('Avaliação vigente não encontrada.');
+    }
+
+    /** @return list<EvaluationSummary> */
+    public function historyFor(Employee $viewer, int $evaluatedId): array
+    {
+        $this->assertVisible($viewer, $evaluatedId);
+
+        return $this->evaluations->findHistoryFor($evaluatedId);
+    }
+
+    private function assertVisible(Employee $viewer, int $evaluatedId): void
+    {
+        if ($this->employees->findById($evaluatedId) === null) {
+            throw ApiException::notFound('Funcionário não encontrado.');
+        }
+
+        $this->hierarchy->assertCanAccess($viewer->id, $evaluatedId);
     }
 
     /** @param array<int,int> $answers */

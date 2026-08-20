@@ -9,8 +9,12 @@ use App\Model\Subordinate;
 use App\Repository\EmployeeRepository;
 
 /**
- * Ponto único do app para perguntas sobre a hierarquia. Autorização de escrita, de leitura e
- * o desempate por maior hierarquia devem passar por aqui, nunca refazer a travessia.
+ * Ponto único do app para a travessia de descendentes: autorização de escrita e de leitura
+ * passam por aqui, nunca refazem a consulta.
+ *
+ * O desempate por maior hierarquia não vive aqui, e sim nas views `employee_depth` e
+ * `current_evaluation` — ele precisa ser aplicado dentro do SQL que escolhe a avaliação, e
+ * defini-lo uma vez no banco garante que a lista e o detalhe não possam divergir.
  */
 final readonly class HierarchyService
 {
@@ -30,7 +34,7 @@ final readonly class HierarchyService
         // Explicito, e nao apoiado em "ninguem e descendente de si mesmo": um ciclo em
         // leader_lead faria a travessia devolver o proprio viewer.
         if ($viewerId === $targetId) {
-            throw ApiException::forbidden('Não é permitido avaliar a si mesmo.');
+            throw ApiException::forbidden('Não é permitido avaliar nem consultar a si mesmo.');
         }
 
         foreach ($this->subordinatesOf($viewerId) as $subordinate) {

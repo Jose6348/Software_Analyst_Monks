@@ -23,4 +23,20 @@ final readonly class EvaluationController
 
         return JsonResponse::write($response, $evaluation, 201);
     }
+
+    /** @param array<string,string> $args */
+    public function latest(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $viewer = CurrentEmployeeMiddleware::from($request);
+
+        return JsonResponse::write($response, $this->evaluations->latestFor($viewer, (int) $args['id']));
+    }
+
+    /** @param array<string,string> $args */
+    public function history(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $viewer = CurrentEmployeeMiddleware::from($request);
+
+        return JsonResponse::write($response, $this->evaluations->historyFor($viewer, (int) $args['id']));
+    }
 }

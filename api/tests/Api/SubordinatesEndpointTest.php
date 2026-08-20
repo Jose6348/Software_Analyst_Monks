@@ -45,6 +45,14 @@ final class SubordinatesEndpointTest extends ApiTestCase
         self::assertSame('NOT_FOUND', $this->decode($response)['error']['code']);
     }
 
+    public function testIdBeyondTheIntegerColumnRangeIsNotFound(): void
+    {
+        // employee.id e int4: sem barreira o Postgres levanta 22003 e a resposta viraria 500.
+        $response = $this->requestWithRawHeader('GET', '/api/me/subordinates', '2147483648');
+
+        self::assertSame(404, $response->getStatusCode());
+    }
+
     public function testCeoReachesEveryoneElse(): void
     {
         $subordinates = $this->decode($this->request('GET', '/api/me/subordinates', self::ALICE));

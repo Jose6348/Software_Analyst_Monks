@@ -7,7 +7,7 @@ namespace App\Controller;
 use App\Http\JsonResponse;
 use App\Middleware\CurrentEmployeeMiddleware;
 use App\Repository\EmployeeRepository;
-use App\Service\HierarchyService;
+use App\Service\EvaluationService;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
@@ -15,7 +15,7 @@ final readonly class EmployeeController
 {
     public function __construct(
         private EmployeeRepository $employees,
-        private HierarchyService $hierarchy,
+        private EvaluationService $evaluations,
     ) {
     }
 
@@ -28,6 +28,6 @@ final readonly class EmployeeController
     {
         $leader = CurrentEmployeeMiddleware::from($request);
 
-        return JsonResponse::write($response, $this->hierarchy->subordinatesOf($leader->id));
+        return JsonResponse::write($response, $this->evaluations->subordinatesWithScores($leader));
     }
 }

@@ -1,0 +1,3 @@
+# Tudo com LF. Scripts e configs deste repositorio sao consumidos dentro de containers Linux:
+# com CRLF o shebang vira "/bin/bash^M: bad interpreter" e o container nem sobe.
+* text=auto eol=lf

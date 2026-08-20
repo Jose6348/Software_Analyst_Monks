@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Model\Employee;
 use App\Model\Evaluation;
 use App\Model\EvaluationAnswer;
+use App\Model\EvaluationSummary;
 use PDO;
 use PDOException;
 use Throwable;
@@ -102,6 +103,72 @@ final readonly class EvaluationRepository
             (string) $row['score'],
             $this->findAnswers($id),
         );
+    }
+
+    /**
+     * Nota vigente de cada funcionario pedido. Consulta separada de propósito: a travessia de
+     * descendentes também serve à autorização, que não deve pagar pelo cálculo de notas.
+     *
+     * @param list<int> $employeeIds
+     * @return array<int,string>
+     */
+    public function findCurrentScoresFor(array $employeeIds): array
+    {
+        if ($employeeIds === []) {
+            return [];
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT ce.evaluated_id, es.score
+               FROM current_evaluation ce
+               JOIN evaluation_score es ON es.evaluation_id = ce.evaluation_id
+              WHERE ce.evaluated_id = ANY(string_to_array(:ids, \',\')::int[])',
+        );
+        $statement->execute(['ids' => implode(',', $employeeIds)]);
+
+        $scores = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            $scores[(int) $row['evaluated_id']] = (string) $row['score'];
+        }
+
+        return $scores;
+    }
+
+    /** A regra da maior hierarquia esta inteira na view; aqui so se pergunta o resultado. */
+    public function findCurrentIdFor(int $evaluatedId): ?int
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT evaluation_id FROM current_evaluation WHERE evaluated_id = :evaluated_id',
+        );
+        $statement->execute(['evaluated_id' => $evaluatedId]);
+        $evaluationId = $statement->fetchColumn();
+
+        return $evaluationId === false ? null : (int) $evaluationId;
+    }
+
+    /** @return list<EvaluationSummary> */
+    public function findHistoryFor(int $evaluatedId): array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT ev.id,
+                    to_char(ev.created_at AT TIME ZONE \'UTC\', \'YYYY-MM-DD"T"HH24:MI:SS"Z"\') AS created_at,
+                    es.score,
+                    (ce.evaluation_id IS NOT NULL)::int AS is_current,
+                    er.id AS evaluator_id,
+                    er.name AS evaluator_name,
+                    er.email AS evaluator_email,
+                    er.position_name AS evaluator_position_name
+               FROM evaluation ev
+               JOIN evaluation_score es ON es.evaluation_id = ev.id
+               JOIN employee er ON er.id = ev.evaluator_id
+               LEFT JOIN current_evaluation ce ON ce.evaluation_id = ev.id
+              WHERE ev.evaluated_id = :evaluated_id
+              ORDER BY ev.created_at DESC, ev.id DESC',
+        );
+        $statement->execute(['evaluated_id' => $evaluatedId]);
+
+        return array_map(EvaluationSummary::fromRow(...), $statement->fetchAll());
     }
 
     /** @return list<EvaluationAnswer> */

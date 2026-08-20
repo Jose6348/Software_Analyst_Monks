@@ -98,9 +98,6 @@ Browser ──► nginx (web:80) ──► /api/* ──► Slim (api:8080) ─�
               └─ SPA estática
 ```
 
-> Esta seção descreve o desenho alvo. Todas as camadas já existem; falta apenas o caminho de
-> leitura de avaliações, que chega no próximo PR.
-
 Uma requisição na API percorre sempre a mesma cadeia:
 
 ```
@@ -142,6 +139,8 @@ auto-referenciada (`leader_id → lead_id`) — um grafo, não necessariamente u
 | `evaluation` | `id`, `evaluator_id`, `evaluated_id`, `created_at` |
 | `evaluation_answer` | `evaluation_id`, `question_id`, `answer` (1–4) |
 | `evaluation_score` | *view*: nota ponderada por avaliação |
+| `employee_depth` | *view*: profundidade de cada funcionário a partir da raiz |
+| `current_evaluation` | *view*: a avaliação vigente de cada funcionário |
 
 Não existe coluna de nota armazenada. A view `evaluation_score` concentra a fórmula em um único
 lugar:
@@ -154,6 +153,10 @@ O divisor é o peso total do questionário — hoje 100, exatamente o `/100` do 
 derivado em vez de fixo. Dividir pela soma dos pesos *respondidos* seria diferente e pior: uma
 avaliação incompleta sairia com nota cheia sobre um subconjunto de questões. Do jeito atual ela
 sai baixa, que é o modo seguro de falhar.
+
+A regra da maior hierarquia segue o mesmo princípio: em vez de repetir o critério em cada query,
+a view `current_evaluation` o define uma vez. A lista de subordinados e a tela de detalhe leem
+dela, então não têm como discordar sobre qual avaliação vale.
 
 ### Endpoints
 
@@ -168,8 +171,10 @@ antes de haver um líder escolhido.
 | GET | `/questions` | — | As 6 questões e seus pesos |
 | GET | `/me/subordinates` | sim | Subordinados diretos e indiretos do líder atual |
 | POST | `/evaluations` | sim | Registra uma avaliação |
-| GET | `/employees/{id}/evaluations` | sim | *(próximo PR)* |
-| GET | `/employees/{id}/evaluations/latest` | sim | *(próximo PR)* |
+| GET | `/employees/{id}/evaluations` | sim | Histórico do avaliado |
+| GET | `/employees/{id}/evaluations/latest` | sim | Avaliação vigente + respostas |
+
+Exemplos de request e response de cada rota estão em [`docs/api.md`](docs/api.md).
 
 ```bash
 curl -H 'X-Employee-Id: 8' http://localhost:8080/api/me/subordinates
@@ -266,6 +271,18 @@ ainda torna a semana determinística independente de onde o servidor roda. Uma v
 409 — a corrida entre duas requisições simultâneas é resolvida pelo banco, não por um `SELECT`
 antes do `INSERT`.
 
+**"Respeitando sempre a maior hierarquia" resolvido em três critérios.** O enunciado pede a
+avaliação *mais recente* **e** o respeito à hierarquia, que se contradizem quando um líder alto
+avaliou há muito tempo e o chefe direto avaliou ontem. A ordem adotada:
+
+1. recorta a **semana ISO mais recente** em que o funcionário foi avaliado;
+2. dentro dela, vence o avaliador de **menor profundidade a partir da raiz** (o CEO);
+3. empate de profundidade resolve pela avaliação **mais recente**.
+
+Sem o passo 1, uma avaliação antiga do CEO venceria para sempre uma recente do chefe direto.
+Profundidade é contada **a partir da raiz**, não a partir de quem consulta — é o que "maior
+hierarquia" significa, e o resultado tem que ser o mesmo para qualquer observador.
+
 **O limite é por par, não por avaliado.** Henry avaliar James não impede David (chefe de Henry)
 de avaliar James na mesma semana. É a leitura literal do enunciado e está coberta por teste.
 
@@ -277,8 +294,10 @@ conjunto de descendentes, independente de quem avaliou. Consequência intenciona
 avaliação que Bob (chefe de David) fez de James, porque James é subordinado de David. O que fica
 vedado é ver avaliações de si mesmo, de pares e de superiores.
 
-**Auto-avaliação é impossível por construção.** Ninguém é descendente de si mesmo, então a
-checagem de hierarquia já barra o caso; o banco reforça com `CHECK (evaluator_id <> evaluated_id)`.
+**Auto-avaliação é barrada explicitamente.** Seria tentador confiar em "ninguém é descendente de
+si mesmo", mas `leader_lead` admite ciclos e nesse caso a premissa é falsa — a travessia
+devolveria o próprio usuário. A autorização compara os ids diretamente, e o banco reforça com
+`CHECK (evaluator_id <> evaluated_id)`.
 
 **Identificação do líder sem login.** O case veda um sistema de login completo. O front guarda o
 `employee_id` do líder atual em `localStorage` e o envia em toda requisição no header
@@ -294,4 +313,8 @@ problema pede exatamente aquilo que o Postgres faz bem: CTE recursiva para a hie
 
 **Proteção contra ciclos.** `leader_lead` é um grafo N:N e nada no schema impede um ciclo. As CTEs
 recursivas usam `UNION` (que deduplica) e limite de profundidade, então um ciclo eventual não
-trava a query.
+trava a query. Pelo mesmo motivo a autorização não se apoia em "ninguém é descendente de si
+mesmo": há uma checagem explícita, porque num ciclo essa premissa é falsa.
+
+**Documentação complementar.** [`docs/api.md`](docs/api.md) traz request e response de exemplo de
+cada endpoint, além da matriz de visibilidade.
