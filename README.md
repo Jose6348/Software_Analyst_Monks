@@ -120,9 +120,9 @@ Route → CurrentEmployeeMiddleware → Controller → Service → Repository �
 ```
 frontend/src/
 ├── api/            client fetch tipado; único ponto que injeta X-Employee-Id
-├── components/     LeaderSwitcher, ScoreBadge, AppLayout, CurrentLeaderProvider
-├── hooks/          líder atual (localStorage + contexto) e queries
-├── pages/          Dashboard
+├── components/     LeaderSwitcher, ScoreBadge, Panel, AppLayout, CurrentLeaderProvider
+├── hooks/          líder atual (localStorage + contexto) e queries/mutations
+├── pages/          Dashboard, EmployeeDetail, EvaluateForm
 └── types/          contrato da API em TypeScript
 ```
 

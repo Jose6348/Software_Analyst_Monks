@@ -1,6 +1,9 @@
-import { useSubordinates } from '../hooks/queries'
+import { Link } from 'react-router-dom'
+
+import { Panel } from '../components/Panel'
 import { ScoreBadge } from '../components/ScoreBadge'
 import { useCurrentLeader } from '../hooks/currentLeader'
+import { useSubordinates } from '../hooks/queries'
 import type { Subordinate } from '../types/api'
 
 export function Dashboard() {
@@ -48,25 +51,23 @@ export function Dashboard() {
 
 function SubordinateRow({ subordinate }: { subordinate: Subordinate }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-      <div className="min-w-0">
-        <p className="truncate font-medium">{subordinate.name}</p>
-        <p className="truncate text-sm text-slate-500">{subordinate.position_name}</p>
-      </div>
+    <li>
+      <Link
+        to={`/employees/${subordinate.id}`}
+        className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-slate-50"
+      >
+        <div className="min-w-0">
+          <p className="truncate font-medium">{subordinate.name}</p>
+          <p className="truncate text-sm text-slate-500">{subordinate.position_name}</p>
+        </div>
 
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-500">
-          {subordinate.is_direct ? 'direto' : `indireto · ${subordinate.depth} níveis`}
-        </span>
-        <ScoreBadge score={subordinate.latest_score} />
-      </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            {subordinate.is_direct ? 'direto' : `indireto · ${subordinate.depth} níveis`}
+          </span>
+          <ScoreBadge score={subordinate.latest_score} />
+        </div>
+      </Link>
     </li>
   )
-}
-
-function Panel({ children, tone = 'neutral' }: { children: string; tone?: 'neutral' | 'error' }) {
-  const toneClasses =
-    tone === 'error' ? 'text-red-800 ring-red-200 bg-red-50' : 'text-slate-600 ring-slate-200 bg-white'
-
-  return <p className={`rounded-lg px-6 py-8 text-center shadow-sm ring-1 ${toneClasses}`}>{children}</p>
 }

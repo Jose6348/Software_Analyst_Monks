@@ -13,17 +13,32 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, employeeId?: number): Promise<T> {
+interface RequestOptions {
+  method?: 'GET' | 'POST'
+  employeeId?: number
+  body?: unknown
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const { method = 'GET', employeeId, body } = options
   const headers: Record<string, string> = {}
 
   if (employeeId !== undefined) {
     headers['X-Employee-Id'] = String(employeeId)
   }
 
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+  }
+
   let response: Response
 
   try {
-    response = await fetch(`${BASE_URL}${path}`, { headers })
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
   } catch {
     // fetch rejeita sem resposta (API fora do ar, offline); sem isso o TypeError cru do
     // browser vazaria em inglês para a UI.
@@ -67,5 +82,7 @@ export const api = {
   /** Rotas de catálogo, as únicas sem identidade. */
   getPublic: <T>(path: string): Promise<T> => request<T>(path),
   /** Rotas autenticadas: a identidade é obrigatória no tipo — esquecê-la é erro de compilação. */
-  get: <T>(path: string, employeeId: number): Promise<T> => request<T>(path, employeeId),
+  get: <T>(path: string, employeeId: number): Promise<T> => request<T>(path, { employeeId }),
+  post: <T>(path: string, body: unknown, employeeId: number): Promise<T> =>
+    request<T>(path, { method: 'POST', employeeId, body }),
 }

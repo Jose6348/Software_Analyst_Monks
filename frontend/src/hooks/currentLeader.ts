@@ -19,22 +19,24 @@ export function useCurrentLeader(): CurrentLeader {
   return value
 }
 
-/** Único parse de id do front: o seletor e o storage passam pela mesma validação. */
-export function parseLeaderId(value: string | null): number | null {
-  if (value === null) {
+/**
+ * Único parse de id do front — seletor, storage e parâmetros de rota passam por aqui.
+ * O regex espelha o CurrentEmployeeMiddleware do backend: só decimal canônico, nada de
+ * '0x10', '1e2' ou espaços que o Number() aceitaria.
+ */
+export function parseEmployeeId(value: string | null | undefined): number | null {
+  if (value === null || value === undefined || !/^[1-9][0-9]*$/.test(value)) {
     return null
   }
 
-  const parsed = Number(value)
-
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null
+  return Number(value)
 }
 
 // localStorage pode lançar (cookies bloqueados, contexto embutido); sem ele a app funciona,
 // só não lembra o líder entre reloads.
 export function readStoredLeaderId(): number | null {
   try {
-    return parseLeaderId(localStorage.getItem(LEADER_STORAGE_KEY))
+    return parseEmployeeId(localStorage.getItem(LEADER_STORAGE_KEY))
   } catch {
     return null
   }
