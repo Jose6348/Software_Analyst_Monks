@@ -104,6 +104,9 @@ Browser ──► nginx (web:80) ──► /api/* ──► Slim (api:8080) ─�
               └─ SPA estática
 ```
 
+Diagramas detalhados (compose, sequência da criação de avaliação, estrutura do front) em
+[`docs/architecture.md`](docs/architecture.md).
+
 Uma requisição na API percorre sempre a mesma cadeia:
 
 ```
@@ -332,5 +335,11 @@ recursivas usam `UNION` (que deduplica) e limite de profundidade, então um cicl
 trava a query. Pelo mesmo motivo a autorização não se apoia em "ninguém é descendente de si
 mesmo": há uma checagem explícita, porque num ciclo essa premissa é falsa.
 
-**Documentação complementar.** [`docs/api.md`](docs/api.md) traz request e response de exemplo de
-cada endpoint, além da matriz de visibilidade.
+**Documentação complementar.**
+
+| Documento | Conteúdo |
+|---|---|
+| [`docs/api.md`](docs/api.md) | Endpoints com request/response de exemplo e a matriz de visibilidade |
+| [`docs/architecture.md`](docs/architecture.md) | Diagramas: compose, fluxo da requisição, sequência da criação, front |
+| [`docs/er-diagram.md`](docs/er-diagram.md) | Modelo de dados, índice da trava semanal e as views |
+| [`docs/user-stories.md`](docs/user-stories.md) | Histórias de usuário com critérios de aceite (pré-desenvolvimento) |
