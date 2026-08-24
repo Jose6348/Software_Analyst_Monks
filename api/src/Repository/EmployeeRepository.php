@@ -55,9 +55,9 @@ final readonly class EmployeeRepository
      *
      * Não traz notas: esta consulta também serve à autorização, que só precisa do conjunto.
      *
-     * Cada descendente vem com o líder imediato do caminho mais curto (`leader_id`), o que
-     * permite ao front remontar a árvore. Num DAG o mesmo funcionário pode ter vários líderes;
-     * o DISTINCT ON escolhe o do menor nível, com desempate estável pelo id.
+     * O DISTINCT ON escolhe, para cada funcionário, o caminho de menor profundidade e devolve o
+     * líder daquele caminho — é o que permite ao front remontar a árvore. Havendo dois caminhos
+     * igualmente curtos, vence o líder de menor id, para o resultado não variar entre execuções.
      *
      * @return list<Subordinate>
      */
@@ -69,7 +69,7 @@ final readonly class EmployeeRepository
                    FROM leader_lead
                   WHERE leader_id = :leader_id
                  UNION
-                 SELECT ll.lead_id, ll.leader_id, s.depth + 1
+                 SELECT ll.lead_id, s.employee_id, s.depth + 1
                    FROM leader_lead ll
                    JOIN subordinates s ON ll.leader_id = s.employee_id
                   WHERE s.depth < :max_depth

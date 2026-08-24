@@ -87,6 +87,9 @@ final class SubordinatesEndpointTest extends ApiTestCase
 
         self::assertCount(4, $subordinates);
         self::assertSame(1, $byName['Henry Patel']['depth']);
+        // O leader_id sustenta a arvore do dashboard: diretos apontam para o lider atual.
+        self::assertSame(self::DAVID, $byName['Henry Patel']['leader_id']);
+        self::assertSame(self::HENRY, $byName['James Watanabe']['leader_id']);
         self::assertTrue($byName['Henry Patel']['is_direct']);
         self::assertSame(2, $byName['James Watanabe']['depth']);
         self::assertFalse($byName['James Watanabe']['is_direct']);

@@ -11,7 +11,6 @@ final readonly class Subordinate implements JsonSerializable
     public function __construct(
         public Employee $employee,
         public int $depth,
-        /** Líder imediato no caminho mais curto; permite remontar a árvore no front. */
         public int $leaderId,
         public ?string $latestScore,
     ) {

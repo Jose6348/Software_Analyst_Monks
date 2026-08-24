@@ -1,8 +1,7 @@
 # Plataforma de Avaliação de Liderados
 
-Aplicação web onde um líder avalia os funcionários da sua hierarquia — diretos e indiretos —
-respondendo seis questões com peso, sob regras estritas de periodicidade, imutabilidade e
-visibilidade.
+Aplicação web onde um líder avalia os funcionários da sua hierarquia (diretos e indiretos)
+respondendo seis questões com peso, sob regras de periodicidade, imutabilidade e visibilidade.
 
 **Stack:** PHP 8.3 + Slim 4 + PDO · PostgreSQL 16 · React 19 + TypeScript + Vite · Docker Compose.
 
@@ -10,7 +9,7 @@ visibilidade.
 
 ## Como rodar
 
-Pré-requisito único: **Docker** com Compose v2+ (`docker compose version`).
+Pré-requisito único: Docker com Compose v2+ (`docker compose version`).
 
 ```bash
 git clone https://github.com/Jose6348/Software_Analyst_Monks.git
@@ -18,7 +17,7 @@ cd Software_Analyst_Monks
 docker compose up --build
 ```
 
-Isso é tudo — não há chave, credencial externa ou passo manual de migration.
+Não há chave, credencial externa ou passo manual de migration.
 
 | Serviço | URL |
 |---|---|
@@ -56,14 +55,14 @@ Compose; não há nada a configurar aí.
 
 ### Recriar o banco do zero
 
-As migrations rodam via `docker-entrypoint-initdb.d`, que o Postgres executa **uma única vez**,
-em volume vazio. Depois de alterar qualquer arquivo em `api/migrations/`:
+As migrations rodam via `docker-entrypoint-initdb.d`, que o Postgres executa uma única vez, em
+volume vazio. Depois de alterar qualquer arquivo em `api/migrations/`:
 
 ```bash
 docker compose down -v && docker compose up --build
 ```
 
-O `-v` é obrigatório — sem ele o volume antigo persiste e as migrations não reexecutam.
+O `-v` é obrigatório: sem ele o volume antigo persiste e as migrations não reexecutam.
 
 ### Testes
 
@@ -71,13 +70,13 @@ O `-v` é obrigatório — sem ele o volume antigo persiste e as migrations não
 docker compose exec api composer test
 ```
 
-São de integração por decisão consciente: as regras críticas (CTEs recursivas, índice único
-semanal, fórmula da nota) vivem em SQL, e testá-las com PDO mockado não testaria nada.
+São testes de integração: as regras críticas (CTEs recursivas, índice único semanal, fórmula da
+nota) vivem em SQL, e testá-las com PDO mockado não testaria nada.
 
-A suíte usa um **banco separado**, `evaluation_test`, criado pelo mesmo `initdb` a partir das
-mesmas migrations. Os testes de HTTP truncam as tabelas de avaliação entre os casos, e isso
-jamais pode alcançar os dados da aplicação — rodar a suíte depois de uma demonstração não pode
-apagar o que foi criado nela.
+A suíte usa um banco separado, `evaluation_test`, criado pelo mesmo `initdb` a partir das mesmas
+migrations. Os testes de HTTP truncam as tabelas de avaliação entre os casos, então precisam
+ficar longe dos dados da aplicação: rodar a suíte depois de uma demonstração não pode apagar o
+que foi criado nela.
 
 ### Front em modo dev (fora do Docker)
 
@@ -147,7 +146,7 @@ api/
 ### Modelo de dados
 
 `employee` e `leader_lead` vêm do dump fornecido, sem alteração. `leader_lead` é uma relação N:N
-auto-referenciada (`leader_id → lead_id`) — um grafo, não necessariamente uma árvore.
+auto-referenciada (`leader_id → lead_id`), ou seja, um grafo e não necessariamente uma árvore.
 
 | Tabela | Colunas |
 |---|---|
@@ -167,10 +166,9 @@ lugar:
 ROUND(SUM(answer * weight)::numeric / (SELECT SUM(weight) FROM question), 2)
 ```
 
-O divisor é o peso total do questionário — hoje 100, exatamente o `/100` do enunciado, mas
-derivado em vez de fixo. Dividir pela soma dos pesos *respondidos* seria diferente e pior: uma
-avaliação incompleta sairia com nota cheia sobre um subconjunto de questões. Do jeito atual ela
-sai baixa, que é o modo seguro de falhar.
+O divisor é o peso total do questionário, hoje 100, exatamente o `/100` do enunciado, mas
+derivado em vez de fixo. Dividir pela soma dos pesos *respondidos* seria pior: uma avaliação
+incompleta sairia com nota cheia sobre um subconjunto de questões. Do jeito atual ela sai baixa.
 
 A regra da maior hierarquia segue o mesmo princípio: em vez de repetir o critério em cada query,
 a view `current_evaluation` o define uma vez. A lista de subordinados e a tela de detalhe leem
@@ -206,14 +204,17 @@ curl -H 'X-Employee-Id: 8' http://localhost:8080/api/me/subordinates
     "email": "james.watanabe@company.com",
     "position_name": "Software Engineer",
     "depth": 1,
-    "is_direct": true
+    "leader_id": 8,
+    "is_direct": true,
+    "latest_score": "3.10"
   }
 ]
 ```
 
-`depth` é a distância até o líder atual e `is_direct` é o atalho para `depth === 1`. Quando um
-funcionário é alcançável por mais de um caminho — `leader_lead` é um grafo N:N, não uma árvore —
-vale a menor profundidade.
+`depth` é a distância até o líder atual e `is_direct` é o atalho para `depth === 1`. Como
+`leader_lead` é um grafo N:N, um funcionário pode ser alcançável por vários caminhos; nesse caso
+vale a menor profundidade. O `leader_id` traz o líder desse caminho, e é o que permite ao
+dashboard remontar a árvore. `latest_score` é `null` para quem nunca foi avaliado.
 
 #### `POST /api/evaluations`
 
@@ -221,7 +222,10 @@ Exige as seis questões, cada uma respondida uma única vez com um inteiro de 1 
 todas, ou nenhuma.
 
 ```bash
-curl -X POST http://localhost:8080/api/evaluations   -H 'Content-Type: application/json'   -H 'X-Employee-Id: 8'   -d '{
+curl -X POST http://localhost:8080/api/evaluations \
+  -H 'Content-Type: application/json' \
+  -H 'X-Employee-Id: 8' \
+  -d '{
         "evaluated_id": 10,
         "answers": [
           {"question_id": 1, "answer": 4},
@@ -247,8 +251,8 @@ curl -X POST http://localhost:8080/api/evaluations   -H 'Content-Type: applicati
 }
 ```
 
-A nota vem como **string**, não como número: é um decimal de escala fixa, e passá-lo por um
-float JSON é justamente o que produz `3.1000000000000001`. O front só exibe.
+A nota vem como string, e não como número, porque é um decimal de escala fixa. Passá-lo por um
+float JSON é o que produz `3.1000000000000001`. O front só exibe.
 
 ### Erros
 
@@ -268,8 +272,8 @@ Todas as respostas de erro têm o mesmo formato:
 | 409 | `WEEKLY_LIMIT_REACHED` | Par avaliador/avaliado já avaliado nesta semana |
 
 O limite semanal é detectado pelo banco (violação do índice único), traduzido para o conceito de
-negócio no `EvaluationRepository` e mapeado para 409 no `EvaluationService` — a regra e sua
-resposta HTTP ficam na camada de serviço, o SQLSTATE não sai da camada de persistência.
+negócio no `EvaluationRepository` e mapeado para 409 no `EvaluationService`. A regra e sua
+resposta HTTP ficam na camada de serviço; o SQLSTATE não sai da camada de persistência.
 
 ---
 
@@ -283,57 +287,64 @@ CREATE UNIQUE INDEX uq_evaluation_pair_week
     ON evaluation (evaluator_id, evaluated_id, (date_trunc('week', created_at AT TIME ZONE 'UTC')));
 ```
 
-O `AT TIME ZONE 'UTC'` não é decoração: `date_trunc(text, timestamptz)` é `STABLE` porque depende
-do fuso da sessão, e o Postgres exige expressões `IMMUTABLE` em índices. Fixar o fuso resolve e
+O `AT TIME ZONE 'UTC'` é necessário: `date_trunc(text, timestamptz)` é `STABLE` porque depende do
+fuso da sessão, e o Postgres exige expressões `IMMUTABLE` em índices. Fixar o fuso resolve isso e
 ainda torna a semana determinística independente de onde o servidor roda. Uma violação vira HTTP
-409 — a corrida entre duas requisições simultâneas é resolvida pelo banco, não por um `SELECT`
-antes do `INSERT`.
+409, então a corrida entre duas requisições simultâneas é resolvida pelo banco e não por um
+`SELECT` antes do `INSERT`.
 
 **"Respeitando sempre a maior hierarquia" resolvido em três critérios.** O enunciado pede a
-avaliação *mais recente* **e** o respeito à hierarquia, que se contradizem quando um líder alto
-avaliou há muito tempo e o chefe direto avaliou ontem. A ordem adotada:
+avaliação *mais recente* e também o respeito à hierarquia. Os dois se contradizem quando um líder
+alto avaliou há muito tempo e o chefe direto avaliou ontem. A ordem adotada:
 
 1. recorta a **semana ISO mais recente** em que o funcionário foi avaliado;
 2. dentro dela, vence o avaliador de **menor profundidade a partir da raiz** (o CEO);
 3. empate de profundidade resolve pela avaliação **mais recente**.
 
 Sem o passo 1, uma avaliação antiga do CEO venceria para sempre uma recente do chefe direto.
-Profundidade é contada **a partir da raiz**, não a partir de quem consulta — é o que "maior
+A profundidade é contada a partir da raiz, e não a partir de quem consulta: é o que "maior
 hierarquia" significa, e o resultado tem que ser o mesmo para qualquer observador.
 
 **O limite é por par, não por avaliado.** Henry avaliar James não impede David (chefe de Henry)
 de avaliar James na mesma semana. É a leitura literal do enunciado e está coberta por teste.
 
-**Imutabilidade.** Não existe endpoint de `PUT`, `PATCH` ou `DELETE` de avaliação. A ausência é a
-garantia.
+**Imutabilidade.** Não existe endpoint de `PUT`, `PATCH` ou `DELETE` de avaliação, e é a ausência
+deles que garante a regra.
 
 **Visibilidade recai sobre o avaliado.** O usuário enxerga as avaliações de quem está no seu
 conjunto de descendentes, independente de quem avaliou. Consequência intencional: David vê a
 avaliação que Bob (chefe de David) fez de James, porque James é subordinado de David. O que fica
 vedado é ver avaliações de si mesmo, de pares e de superiores.
 
-**Auto-avaliação é barrada explicitamente.** Seria tentador confiar em "ninguém é descendente de
-si mesmo", mas `leader_lead` admite ciclos e nesse caso a premissa é falsa — a travessia
-devolveria o próprio usuário. A autorização compara os ids diretamente, e o banco reforça com
+**Auto-avaliação é barrada explicitamente.** Confiar em "ninguém é descendente de si mesmo" seria
+frágil, porque `leader_lead` admite ciclos e nesse caso a travessia devolve o próprio usuário. A
+autorização compara os ids diretamente, e o banco reforça com
 `CHECK (evaluator_id <> evaluated_id)`.
 
 **Identificação do líder sem login.** O case veda um sistema de login completo. O front guarda o
 `employee_id` do líder atual em `localStorage` e o envia em toda requisição no header
 `X-Employee-Id`; o seletor no topo da tela troca de líder e a escolha sobrevive ao reload. No
-código, o header é injetado num único lugar — `frontend/src/api/client.ts`. Isso **simula** autenticação e não é
-seguro — qualquer cliente pode forjar o header. Em produção o `CurrentEmployeeMiddleware` seria o
-único ponto de troca: em vez de confiar num header, validaria um JWT ou uma sessão e extrairia
-dali o `employee_id`. Todo o resto — services, repositories, regras de visibilidade — continuaria
-idêntico, porque nada abaixo do middleware sabe de onde veio a identidade.
+código, o header é injetado num único lugar, `frontend/src/api/client.ts`.
 
-**PostgreSQL.** O dump fornecido já usa sintaxe Postgres (`SERIAL`, `setval`). Além disso o
-problema pede exatamente aquilo que o Postgres faz bem: CTE recursiva para a hierarquia, índice
-único por expressão para a trava semanal e `DISTINCT ON` para escolher uma linha por grupo.
+Isso simula autenticação e não é seguro, já que qualquer cliente pode forjar o header. Em
+produção o `CurrentEmployeeMiddleware` seria o único ponto de troca: em vez de confiar num
+header, validaria um JWT ou uma sessão e extrairia dali o `employee_id`. Services, repositories,
+regras de visibilidade e telas continuariam idênticos, porque nada abaixo do middleware sabe de
+onde veio a identidade.
+
+**PostgreSQL.** O dump fornecido já usa sintaxe Postgres (`SERIAL`, `setval`), e o problema pede
+aquilo que o Postgres faz bem: CTE recursiva para a hierarquia, índice único por expressão para a
+trava semanal e `DISTINCT ON` para escolher uma linha por grupo.
 
 **Proteção contra ciclos.** `leader_lead` é um grafo N:N e nada no schema impede um ciclo. As CTEs
 recursivas usam `UNION` (que deduplica) e limite de profundidade, então um ciclo eventual não
-trava a query. Pelo mesmo motivo a autorização não se apoia em "ninguém é descendente de si
-mesmo": há uma checagem explícita, porque num ciclo essa premissa é falsa.
+trava a query. A árvore do dashboard segue a mesma precaução: marca cada nó como visitado antes
+de descer, senão a recursão voltaria ao ponto de partida.
+
+**Quando um funcionário tem dois líderes.** O grafo permite. Se os dois caminhos tiverem o mesmo
+comprimento, a árvore do dashboard exibe o funcionário sob o líder de menor id — uma escolha
+arbitrária, mas estável entre execuções. Com o dump fornecido a situação não ocorre: a hierarquia
+seed é uma árvore.
 
 **Documentação complementar.**
 

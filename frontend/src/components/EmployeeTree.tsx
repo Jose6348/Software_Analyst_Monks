@@ -9,11 +9,11 @@ interface TreeNode {
 }
 
 /**
- * Remonta a árvore a partir da lista achatada, usando o `leader_id` que a CTE devolve.
+ * Remonta a árvore a partir da lista achatada, usando o `leader_id` de cada descendente.
  *
- * O visitado não é zelo excessivo: `leader_lead` é um grafo N:N e admite ciclos. Com
- * Henry → James → Henry, o pai do Henry seria o James e o do James seria o Henry, e a
- * recursão não terminaria.
+ * A marcação de visitado acontece antes de descer: `leader_lead` admite ciclos, e num
+ * Henry → James → Henry a recursão voltaria ao ponto de partida. Marcar depois deixaria a
+ * recursão reivindicar um irmão que o laço de fora ainda vai percorrer, duplicando a pessoa.
  */
 function buildTree(subordinates: Subordinate[], rootId: number): TreeNode[] {
   const childrenByLeader = new Map<number, Subordinate[]>()
@@ -26,24 +26,22 @@ function buildTree(subordinates: Subordinate[], rootId: number): TreeNode[] {
 
   const visited = new Set<number>()
 
-  const nodesUnder = (leaderId: number): TreeNode[] =>
-    (childrenByLeader.get(leaderId) ?? [])
-      .filter((subordinate) => !visited.has(subordinate.id))
-      .map((subordinate) => {
-        visited.add(subordinate.id)
+  const nodesUnder = (leaderId: number): TreeNode[] => {
+    const nodes: TreeNode[] = []
 
-        return { subordinate, children: nodesUnder(subordinate.id) }
-      })
+    for (const subordinate of childrenByLeader.get(leaderId) ?? []) {
+      if (visited.has(subordinate.id)) {
+        continue
+      }
 
-  const tree = nodesUnder(rootId)
+      visited.add(subordinate.id)
+      nodes.push({ subordinate, children: nodesUnder(subordinate.id) })
+    }
 
-  // Quem não foi alcançado a partir da raiz sobe para o topo: melhor exibir fora de posição
-  // do que sumir da tela.
-  const orphans = subordinates
-    .filter((subordinate) => !visited.has(subordinate.id))
-    .map((subordinate) => ({ subordinate, children: [] }))
+    return nodes
+  }
 
-  return [...tree, ...orphans]
+  return nodesUnder(rootId)
 }
 
 export function EmployeeTree({
@@ -57,14 +55,14 @@ export function EmployeeTree({
 }
 
 function Branch({ nodes, level }: { nodes: TreeNode[]; level: number }) {
+  // A indentação vive na lista, não na linha: é o que põe a guia vertical no recuo do nível.
   return (
-    <ul className={level === 0 ? 'divide-y divide-slate-100' : 'border-l border-slate-200'}>
+    <ul className={level === 0 ? 'divide-y divide-slate-100' : 'ml-6 border-l border-slate-200'}>
       {nodes.map(({ subordinate, children }) => (
         <li key={subordinate.id}>
           <Link
             to={`/employees/${subordinate.id}`}
-            className="flex flex-wrap items-center justify-between gap-3 py-3 pr-6 transition-colors hover:bg-slate-50"
-            style={{ paddingLeft: `${1.5 + level * 1.5}rem` }}
+            className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 transition-colors hover:bg-slate-50"
           >
             <div className="min-w-0">
               <p className="truncate font-medium">{subordinate.name}</p>
