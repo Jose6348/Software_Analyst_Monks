@@ -79,6 +79,7 @@ curl -H 'X-Employee-Id: 4' http://localhost:8080/api/me/subordinates
     "email": "henry.patel@company.com",
     "position_name": "Senior Software Engineer",
     "depth": 1,
+    "leader_id": 4,
     "is_direct": true,
     "latest_score": null
   },
@@ -88,6 +89,7 @@ curl -H 'X-Employee-Id: 4' http://localhost:8080/api/me/subordinates
     "email": "james.watanabe@company.com",
     "position_name": "Software Engineer",
     "depth": 2,
+    "leader_id": 8,
     "is_direct": false,
     "latest_score": "1.00"
   }
@@ -97,6 +99,9 @@ curl -H 'X-Employee-Id: 4' http://localhost:8080/api/me/subordinates
 `depth` é a distância até o líder atual; `is_direct` é o atalho para `depth === 1`. Quando um
 funcionário é alcançável por mais de um caminho — `leader_lead` é um grafo N:N — vale a menor
 profundidade.
+
+`leader_id` é o líder imediato **no caminho mais curto**, e é o que permite ao front remontar a
+árvore a partir da lista achatada. Para os diretos ele é o próprio líder atual.
 
 `latest_score` é a nota da avaliação **vigente**, pela mesma regra de `/evaluations/latest`; é
 `null` para quem nunca foi avaliado. Os dois endpoints leem a mesma definição e não podem

@@ -7,6 +7,8 @@ export interface Employee {
 
 export interface Subordinate extends Employee {
   depth: number
+  /** Líder imediato no caminho mais curto; é o que permite remontar a árvore. */
+  leader_id: number
   is_direct: boolean
   /** Decimal de escala fixa; a API o envia como string para não passar por um float. */
   latest_score: string | null

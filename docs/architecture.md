@@ -90,7 +90,7 @@ flowchart TD
         LS[LeaderSwitcher] --> CL["CurrentLeaderProvider<br/>(localStorage + contexto)"]
     end
 
-    CL --> DA["Dashboard<br/>hierarquia + nota vigente"]
+    CL --> DA["Dashboard<br/>EmployeeTree + nota vigente"]
     DA --> ED["EmployeeDetail<br/>vigente + respostas + histórico"]
     ED --> EF["EvaluateForm<br/>6 questões, preview da nota"]
 

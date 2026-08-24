@@ -55,26 +55,34 @@ final readonly class EmployeeRepository
      *
      * Não traz notas: esta consulta também serve à autorização, que só precisa do conjunto.
      *
+     * Cada descendente vem com o líder imediato do caminho mais curto (`leader_id`), o que
+     * permite ao front remontar a árvore. Num DAG o mesmo funcionário pode ter vários líderes;
+     * o DISTINCT ON escolhe o do menor nível, com desempate estável pelo id.
+     *
      * @return list<Subordinate>
      */
     public function findDescendants(int $leaderId): array
     {
         $statement = $this->pdo->prepare(
             'WITH RECURSIVE subordinates AS (
-                 SELECT lead_id AS employee_id, 1 AS depth
+                 SELECT lead_id AS employee_id, leader_id, 1 AS depth
                    FROM leader_lead
                   WHERE leader_id = :leader_id
                  UNION
-                 SELECT ll.lead_id, s.depth + 1
+                 SELECT ll.lead_id, ll.leader_id, s.depth + 1
                    FROM leader_lead ll
                    JOIN subordinates s ON ll.leader_id = s.employee_id
                   WHERE s.depth < :max_depth
+             ),
+             shallowest AS (
+                 SELECT DISTINCT ON (employee_id) employee_id, leader_id, depth
+                   FROM subordinates
+                  ORDER BY employee_id, depth, leader_id
              )
-             SELECT e.id, e.name, e.email, e.position_name, MIN(s.depth) AS depth
-               FROM subordinates s
+             SELECT e.id, e.name, e.email, e.position_name, s.depth, s.leader_id
+               FROM shallowest s
                JOIN employee e ON e.id = s.employee_id
-              GROUP BY e.id, e.name, e.email, e.position_name
-              ORDER BY MIN(s.depth), e.name',
+              ORDER BY s.depth, e.name',
         );
         $statement->execute([
             'leader_id' => $leaderId,
