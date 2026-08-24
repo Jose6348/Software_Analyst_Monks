@@ -17,6 +17,7 @@ final class HierarchyServiceTest extends TransactionalTestCase
     private const DAVID = 4;
     private const HENRY = 8;
     private const JAMES = 10;
+    private const KAREN = 11;
 
     private HierarchyService $hierarchy;
 
@@ -44,6 +45,25 @@ final class HierarchyServiceTest extends TransactionalTestCase
         self::assertCount(4, $this->hierarchy->subordinatesOf(self::DAVID));
         self::assertCount(2, $this->hierarchy->subordinatesOf(self::HENRY));
         self::assertSame([], $this->hierarchy->subordinatesOf(self::JAMES));
+    }
+
+    public function testEachSubordinateCarriesItsImmediateLeader(): void
+    {
+        $leaders = $this->leadersFrom(self::DAVID);
+
+        // Diretos apontam para o proprio David; indiretos, para quem de fato os lidera.
+        self::assertSame(self::DAVID, $leaders[self::HENRY]);
+        self::assertSame(self::HENRY, $leaders[self::JAMES]);
+        self::assertSame(self::HENRY, $leaders[self::KAREN]);
+    }
+
+    public function testTheImmediateLeaderFollowsTheShortestPath(): void
+    {
+        // Alice alcanca James por Henry (nivel 4) e, com este atalho, direto (nivel 1).
+        $this->addLeadership(self::ALICE, self::JAMES);
+
+        self::assertSame(self::ALICE, $this->leadersFrom(self::ALICE)[self::JAMES]);
+        self::assertSame(1, $this->depthsFrom(self::ALICE)[self::JAMES]);
     }
 
     public function testNobodyIsTheirOwnSubordinate(): void
@@ -79,6 +99,18 @@ final class HierarchyServiceTest extends TransactionalTestCase
 
         $this->expectException(ApiException::class);
         $this->hierarchy->assertCanAccess(self::HENRY, self::HENRY);
+    }
+
+    /** @return array<int,int> */
+    private function leadersFrom(int $leaderId): array
+    {
+        $leaders = [];
+
+        foreach ($this->hierarchy->subordinatesOf($leaderId) as $subordinate) {
+            $leaders[$subordinate->employee->id] = $subordinate->leaderId;
+        }
+
+        return $leaders;
     }
 
     /** @return array<int,int> */

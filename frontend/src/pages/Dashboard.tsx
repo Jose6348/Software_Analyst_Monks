@@ -1,10 +1,7 @@
-import { Link } from 'react-router-dom'
-
+import { EmployeeTree } from '../components/EmployeeTree'
 import { Panel } from '../components/Panel'
-import { ScoreBadge } from '../components/ScoreBadge'
 import { useCurrentLeader } from '../hooks/currentLeader'
 import { useSubordinates } from '../hooks/queries'
-import type { Subordinate } from '../types/api'
 
 export function Dashboard() {
   const { leaderId } = useCurrentLeader()
@@ -31,43 +28,20 @@ export function Dashboard() {
     return <Panel>Este funcionário não lidera ninguém, então não tem quem avaliar.</Panel>
   }
 
+  const directs = subordinates.filter((subordinate) => subordinate.is_direct).length
+  const evaluated = subordinates.filter((subordinate) => subordinate.latest_score !== null).length
+
   return (
     <section className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
-      <div className="flex items-baseline justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 px-6 py-4">
         <h2 className="font-semibold">Sua hierarquia</h2>
         <span className="text-sm text-slate-500">
-          {subordinates.length} {subordinates.length === 1 ? 'liderado' : 'liderados'}
+          {subordinates.length} {subordinates.length === 1 ? 'liderado' : 'liderados'} ·{' '}
+          {directs} {directs === 1 ? 'direto' : 'diretos'} · {evaluated} com avaliação
         </span>
       </div>
 
-      <ul className="divide-y divide-slate-100">
-        {subordinates.map((subordinate) => (
-          <SubordinateRow key={subordinate.id} subordinate={subordinate} />
-        ))}
-      </ul>
+      <EmployeeTree subordinates={subordinates} leaderId={leaderId} />
     </section>
-  )
-}
-
-function SubordinateRow({ subordinate }: { subordinate: Subordinate }) {
-  return (
-    <li>
-      <Link
-        to={`/employees/${subordinate.id}`}
-        className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 transition-colors hover:bg-slate-50"
-      >
-        <div className="min-w-0">
-          <p className="truncate font-medium">{subordinate.name}</p>
-          <p className="truncate text-sm text-slate-500">{subordinate.position_name}</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500">
-            {subordinate.is_direct ? 'direto' : `indireto · ${subordinate.depth} níveis`}
-          </span>
-          <ScoreBadge score={subordinate.latest_score} />
-        </div>
-      </Link>
-    </li>
   )
 }
